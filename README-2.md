@@ -1,0 +1,651 @@
+# 🎬 Movie Recommendation System
+
+An end-to-end **Movie Recommendation System** built using movie data collected from the **TMDB API**.
+
+The project covers the complete pipeline from **data collection and preprocessing** to **exploratory data analysis, feature engineering, content-based recommendation, semantic recommendation, and a chatbot prototype**.
+
+---
+
+## 📌 Project Overview
+
+The main goal of this project is to recommend movies similar to movies that a user already likes.
+
+The system uses two independent recommendation approaches:
+
+- **TF-IDF + Cosine Similarity** for content-based recommendations.
+- **Sentence Transformers + Cosine Similarity** for semantic recommendations.
+
+The project also includes a **rule-based chatbot** and a **Streamlit prototype** for interacting with the system.
+
+---
+
+## 🚀 Key Features
+
+- 🎥 TMDB API data collection
+- 🔄 Pagination, retry, back-off, HTTP 429 handling, checkpoints, and resume support
+- 🗃️ Relational dataset construction with **12 tables**
+- 🧹 Data cleaning and validation
+- 🛠️ Feature engineering
+- 📊 Exploratory Data Analysis (EDA)
+- 🧠 TF-IDF + Cosine Similarity recommendation
+- 🤖 Semantic recommendation using Sentence Transformers
+- 💬 Rule-based movie chatbot
+- 🌐 Streamlit application prototype
+- 📦 Embedding compression from `float32` to `float16`
+
+> These features reflect the operations implemented in the project notebook.
+
+---
+
+# 🔄 Project Workflow
+
+```text
+                         TMDB API
+                            │
+                            ▼
+                  Movie ID Discovery
+                            │
+                            ▼
+             Movie Details + Credits
+                     + Keywords
+                            │
+                            ▼
+                   Raw JSON Data
+                            │
+                            ▼
+              Parsing into 12 Tables
+                            │
+                            ▼
+                 Data Cleaning
+                            │
+                            ▼
+                 Data Validation
+                            │
+                            ▼
+                Data Export / Storage
+                            │
+                            ▼
+               Feature Engineering
+                            │
+                            ▼
+                Master Movie Table
+                            │
+                            ▼
+          Exploratory Data Analysis
+                            │
+             ┌──────────────┴──────────────┐
+             ▼                             ▼
+        TF-IDF Model              Sentence Transformer
+             │                             │
+             ▼                             ▼
+    Cosine Similarity              Semantic Similarity
+             │                             │
+             ▼                             ▼
+     User-Profile Based             Movie-Based
+     Recommendations               Recommendations
+             │
+             ▼
+       Rule-Based Chatbot
+             │
+             ▼
+      Streamlit Prototype
+```
+
+The workflow follows the actual pipeline implemented in the notebook.
+
+---
+
+# 📊 Dataset
+
+## Data Source
+
+The project uses the **TMDB API** for movie information.
+
+Two main API endpoints are used:
+
+- `/discover/movie` — for movie discovery
+- `/movie/{id}?append_to_response=credits,keywords` — for detailed movie information
+
+### Collection Criteria
+
+The dataset was collected using:
+
+- `vote_count >= 50`
+- Adult content excluded
+- `sort_by = vote_count.desc`
+- Release years from **1990 to 2026**
+
+### Dataset Size
+
+The resulting dataset contains:
+
+- **28,433 movies**
+- Release dates ranging from **1990-01-01** to **2026-09-23**
+
+---
+
+## 🗂️ Dataset Structure
+
+The collected data is organized into relational tables.
+
+| Table | Description | Rows |
+|---|---|---:|
+| `movies` | Main movie information | 28,433 |
+| `genres` | Genre dictionary | 19 |
+| `movie_genres` | Movie–genre relationships | — |
+| `keywords` | Keyword dictionary | 24,563 |
+| `movie_keywords` | Movie–keyword relationships | — |
+| `production_companies` | Production company dictionary | — |
+| `movie_production_companies` | Movie–company relationships | — |
+| `countries` | Country dictionary | — |
+| `movie_countries` | Movie–country relationships | — |
+| `people` | Cast and crew members | 735,437 |
+| `movie_cast` | Movie–cast relationships | 787,733 |
+| `movie_crew` | Movie–crew relationships | 1,385,346 |
+
+### Main Movie Features
+
+The `movies` table contains information such as:
+
+```text
+id
+title
+original_title
+original_language
+overview
+release_date
+popularity
+vote_average
+vote_count
+runtime
+budget
+revenue
+tagline
+status
+adult
+video
+poster_path
+backdrop_path
+```
+
+The relational tables are connected through movie, genre, keyword, company, country, and person identifiers.
+
+> **Note:** The dataset is not included in this repository because of TMDB terms and file size. It can be regenerated by running the data-collection section with a valid TMDB API token.
+
+---
+
+# 🧹 Data Preprocessing
+
+The preprocessing pipeline includes several stages.
+
+## Data Parsing
+
+- Malformed or unreadable JSON files are skipped and counted.
+- Empty strings are converted to missing values.
+
+## Missing Values
+
+The following values are treated as missing when equal to zero:
+
+- `runtime`
+- `budget`
+- `revenue`
+
+Aggregated text features use `"Unknown"` where appropriate, while fields such as budget, revenue, runtime, tagline, and overview remain missing when unavailable.
+
+## Data Types
+
+`release_date` is converted to a datetime format using:
+
+```python
+pd.to_datetime(..., errors="coerce")
+```
+
+## Duplicate Handling
+
+Duplicates are removed using primary keys or key combinations when constructing the relational tables.
+
+The final movie and master tables were checked for duplicate rows.
+
+---
+
+# ✅ Data Validation
+
+Before exporting the processed data, structural validation checks are performed.
+
+The validation checks include:
+
+- Duplicate movie IDs
+- Orphaned `movie_genres → genres` relationships
+- Orphaned `movie_cast → people` relationships
+- Missing movie titles
+- Missing `budget`
+- Missing `runtime`
+- Release-date range
+
+The final validation reported **no structural issues**.
+
+### Missing-Value Percentages
+
+| Feature | Missing |
+|---|---:|
+| `budget` | 62.8% |
+| `runtime` | 0.2% |
+
+---
+
+# 📈 Exploratory Data Analysis
+
+The project includes exploratory analysis of the movie dataset.
+
+### Analysis Performed
+
+- Movies per year
+- `vote_average` distribution
+- Top 10 genres
+- Missing-value analysis
+- Numerical and categorical feature analysis
+- IQR-based outlier counts
+- Feature skewness
+- Correlation heatmap
+- Basic numerical distributions
+
+> **Outliers were counted but not removed.**
+
+The most skewed feature was `popularity`, with skewness of approximately **29.45**.
+
+---
+
+# 🛠️ Feature Engineering
+
+Several new features are created before building the recommendation systems.
+
+## Date Features
+
+```text
+release_year
+release_month
+release_dayofweek
+```
+
+## Aggregated Text Features
+
+```text
+genres
+countries
+production_companies
+keywords
+directors
+```
+
+## Relationship-Based Features
+
+```text
+cast_count
+crew_count
+unique_crew_departments
+keyword_count
+genre_count
+country_count
+production_company_count
+```
+
+### Master Dataset
+
+The resulting master dataset contains:
+
+**28,433 rows × 27 columns**
+
+---
+
+# 🧠 Recommendation Systems
+
+The project implements **two independent recommendation approaches**.
+
+---
+
+## 1️⃣ TF-IDF + Cosine Similarity
+
+This is a **content-based recommendation system**.
+
+Movie information is converted into a combined text representation using:
+
+- Movie description
+- Genres
+- Director
+- Cast
+- Keywords
+
+Selected features are given additional weight by repeating them in the combined text.
+
+### TF-IDF Configuration
+
+```python
+TfidfVectorizer(
+    stop_words="english",
+    max_features=50000,
+    ngram_range=(1, 2)
+)
+```
+
+### Recommendation Process
+
+The system:
+
+1. Converts movie text into TF-IDF vectors.
+2. Creates a user profile by averaging the vectors of liked movies.
+3. Calculates cosine similarity between the user profile and all movies.
+4. Removes movies already liked by the user.
+5. Keeps positive similarity scores.
+6. Returns the top recommendations.
+
+The default output is **Top 20 recommendations**.
+
+### Concept
+
+```text
+Liked Movies
+     │
+     ▼
+TF-IDF Vectors
+     │
+     ▼
+Average Vectors
+     │
+     ▼
+User Profile
+     │
+     ▼
+Cosine Similarity
+     │
+     ▼
+Top Recommended Movies
+```
+
+---
+
+## 2️⃣ Semantic Recommendation
+
+The second approach uses **Sentence Transformers** to capture semantic relationships between movies.
+
+### Model
+
+```text
+all-MiniLM-L6-v2
+```
+
+The model generates **384-dimensional embeddings**.
+
+The embedding text is created using:
+
+```text
+overview + genres
+```
+
+The selected movie's embedding is compared with other movie embeddings using cosine similarity.
+
+The system returns the most semantically similar movies along with information such as:
+
+- Genres
+- Rating
+- Release year
+
+### Embedding Storage
+
+Embeddings are stored as `.npy` files and compressed from `float32` to `float16`.
+
+```text
+Original:    41.65 MB
+Compressed:  20.83 MB
+```
+
+> **Important:** The TF-IDF and semantic recommenders are currently **independent**. The project does not implement a hybrid recommendation model combining their scores.
+
+---
+
+# 💬 Chatbot
+
+The project includes a lightweight **rule-based movie chatbot**.
+
+## Supported Capabilities
+
+### 🎬 Similar Movies
+
+Detects requests asking for movies similar to a specific movie.
+
+### ℹ️ Movie Information
+
+Retrieves information such as:
+
+- Overview
+- Release date
+- Rating
+- Vote count
+- Runtime
+- Popularity
+
+### 🎯 Intent Detection
+
+The chatbot uses keyword-based intent detection with three main intents:
+
+```text
+similar_movies
+movie_info
+unknown
+```
+
+It also uses movie-title extraction to identify the movie mentioned by the user.
+
+---
+
+# 🖥️ Application Demo
+
+The project includes a Streamlit-based movie chatbot prototype with features such as:
+
+- 🎬 Movie details
+- 🔎 Smart movie search
+- 🎭 Search by genre
+- ⭐ Top-rated movies
+- 🧠 Semantic recommendations
+- 🖼️ Movie posters
+
+### 🌞 Light Mode
+
+<p align="center">
+  <img src="images/streamlit-light.png" alt="Movie Chatbot - Light Mode" width="900">
+</p>
+
+### 🌙 Dark Mode
+
+<p align="center">
+  <img src="images/streamlit-dark.png" alt="Movie Chatbot - Dark Mode" width="900">
+</p>
+
+---
+
+# 🌐 Streamlit Prototype
+
+A Streamlit prototype is included as part of the project.
+
+The notebook contains two prototype versions:
+
+1. Dataset preview
+2. Chat interface
+
+The application can be exposed using an **ngrok tunnel**.
+
+> **Current limitation:** The Streamlit application is still a prototype and is **not yet connected directly to the recommendation functions**.
+
+---
+
+# 📊 Results
+
+The semantic recommender was tested using **Interstellar**.
+
+Some generated recommendations included:
+
+| Movie | Similarity |
+|---|---:|
+| Prometheus | 0.706 |
+| Space Chimps | 0.667 |
+| The Beyond | 0.648 |
+| Voyagers | 0.619 |
+| Star Trek Beyond | 0.610 |
+
+The chatbot's intent detection and movie-title extraction worked on the provided test questions.
+
+## Evaluation
+
+The current project does **not** include quantitative recommendation metrics such as:
+
+```text
+Precision@K
+Recall@K
+NDCG
+MAP
+```
+
+Recommendations were evaluated through **manual inspection**.
+
+---
+
+# 🛠️ Technologies
+
+| Technology | Purpose |
+|---|---|
+| Python 3.11 | Main programming language |
+| Pandas | Data manipulation |
+| NumPy | Numerical operations |
+| Requests | TMDB API requests |
+| Scikit-learn | TF-IDF and cosine similarity |
+| Sentence Transformers | Semantic embeddings |
+| Matplotlib | Data visualization |
+| Seaborn | Statistical visualization |
+| Streamlit | Web application prototype |
+| pyngrok | ngrok integration |
+| Google Colab | Development environment |
+
+The technology list is based on the libraries and environment documented in the notebook.
+
+---
+
+# 🚀 Getting Started
+
+The project was developed primarily in **Google Colab**.
+
+## 1. Clone the Repository
+
+```bash
+git clone YOUR_REPOSITORY_URL
+cd movie-recommendation-system
+```
+
+## 2. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+## 3. TMDB API Token
+
+You need a **TMDB API Read Access Token** to regenerate the dataset.
+
+### Google Colab
+
+Add the following secrets through the Colab Secrets panel:
+
+```text
+TMDB_API_TOKEN
+NGROK_AUTHTOKEN
+```
+
+The ngrok token is only required for the prototype tunnel.
+
+### Local Environment
+
+Set the required environment variables:
+
+```bash
+export TMDB_API_TOKEN="YOUR_TOKEN"
+export NGROK_AUTHTOKEN="YOUR_TOKEN"
+```
+
+> **Security:** Never commit real tokens or credentials to GitHub.
+
+---
+
+# 📁 Repository Structure
+
+```text
+movie-recommendation-system/
+│
+├── Movies_Recommendation_System.ipynb
+├── README.md
+├── requirements.txt
+├── .env.example
+├── .gitignore
+│
+└── images/
+    ├── streamlit-light.png
+    └── streamlit-dark.png
+```
+
+The dataset, raw JSON files, checkpoints, and generated embeddings are intentionally excluded from the repository.
+
+---
+
+# ⚠️ Limitations
+
+The current implementation has several limitations:
+
+- Recommendations are not quantitatively evaluated.
+- The chatbot relies on keyword-based intent detection and title matching.
+- The Streamlit application is still a prototype and is not connected to the recommenders.
+- The dataset only includes movies with `vote_count >= 50`.
+- The dataset starts from 1990.
+- `budget` and `revenue` contain a substantial amount of missing data.
+- The two recommendation approaches are currently independent rather than hybrid.
+
+---
+
+# 🔮 Future Improvements
+
+Potential improvements include:
+
+- 📊 Add offline recommendation evaluation metrics.
+- 🔀 Build a hybrid recommender combining TF-IDF and semantic scores.
+- 🌐 Connect the Streamlit interface directly to the recommendation functions.
+- 🧠 Replace keyword-based intent detection with a more robust NLP approach.
+- 🎯 Improve movie-title recognition and entity matching.
+
+These improvements are consistent with the future-work directions identified in the project.
+
+---
+
+# 📚 Data Attribution
+
+This project uses the **TMDB API** for movie data.
+
+> This product uses the TMDB API but is **not endorsed or certified by TMDB**.
+
+---
+
+# 👨‍💻 Project Focus
+
+```text
+Data Engineering
+       +
+Data Preprocessing
+       +
+Exploratory Data Analysis
+       +
+Natural Language Processing
+       +
+Recommendation Systems
+       +
+Machine Learning
+       +
+Streamlit
+```
+
+**Built as a practical end-to-end Data Science and Machine Learning project.**

@@ -1,5 +1,7 @@
 # 🎬 Movie Recommendation System
 
+# Link of Chatbot : https://movie-chatbot-k5cuabannvjktb5x66ncso.streamlit.app/
+
 An end-to-end **Movie Recommendation System** built using movie data collected from the **TMDB API**.
 
 The project covers the complete pipeline from **data collection and preprocessing** to **exploratory data analysis, feature engineering, content-based recommendation, semantic recommendation, and a chatbot prototype**.
